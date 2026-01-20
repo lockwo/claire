@@ -43,6 +43,90 @@ services:
 docker-compose up -d
 ```
 
+## Ubuntu/VPS with PM2
+
+For running on a VPS or bare metal Ubuntu server:
+
+### Prerequisites
+
+```bash
+# Install Bun
+curl -fsSL https://bun.sh/install | bash
+
+# Install Node.js (required for PM2)
+curl -fsSL https://deb.nodesource.com/setup_20.x | sudo -E bash -
+sudo apt-get install -y nodejs
+
+# Install PM2 globally
+bun add -g pm2
+```
+
+### Setup
+
+```bash
+git clone https://github.com/lockwo/claire.git
+cd claire
+bun install
+cp .env.example .env
+# Edit .env with your tokens
+```
+
+### Running with PM2
+
+```bash
+# Start Claire
+pm2 start "bun run start" --name claire
+
+# View logs
+pm2 logs claire
+
+# Check status
+pm2 status
+
+# Restart
+pm2 restart claire
+
+# Stop
+pm2 stop claire
+```
+
+### Persist across reboots
+
+```bash
+pm2 startup    # Follow the command it outputs
+pm2 save       # Save current process list
+```
+
+### Alternative: systemd
+
+If you prefer not to install Node.js, use systemd directly:
+
+```bash
+sudo tee /etc/systemd/system/claire.service << 'EOF'
+[Unit]
+Description=Claire Slack Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/claire
+ExecStart=/home/ubuntu/.bun/bin/bun run start
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+sudo systemctl daemon-reload
+sudo systemctl enable claire
+sudo systemctl start claire
+
+# View logs
+sudo journalctl -u claire -f
+```
+
 ## Single Instance
 
 Claire runs as one instance. Socket Mode uses a single WebSocket to Slack - multiple instances don't help. The bottleneck is LLM latency, not Claire's throughput.
