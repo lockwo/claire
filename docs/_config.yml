@@ -1,0 +1,18 @@
+title: Claire
+description: Slack-native AI code agent
+remote_theme: just-the-docs/just-the-docs@v0.10.0
+color_scheme: dark
+
+url: https://lockwo.github.io
+baseurl: /claire
+
+plugins:
+  - jekyll-remote-theme
+
+aux_links:
+  GitHub: https://github.com/lockwo/claire
+
+nav_enabled: true
+search_enabled: true
+
+footer_content: "Claire - Apache 2.0"

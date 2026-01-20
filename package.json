@@ -1,0 +1,62 @@
+{
+  "name": "claire-slackbot",
+  "version": "0.1.0",
+  "description": "Slack-native code agent that turns threads into a power IDE - mention @claire to run code, interact with git, and execute tasks",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "claire": "dist/index.js"
+  },
+  "scripts": {
+    "dev": "bun run --watch src/index.ts",
+    "start": "bun run src/index.ts",
+    "build": "bun build src/index.ts --outdir dist --target bun",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "bun test"
+  },
+  "keywords": [
+    "slack",
+    "slackbot",
+    "ai",
+    "claude",
+    "anthropic",
+    "code-agent",
+    "llm",
+    "automation",
+    "developer-tools"
+  ],
+  "author": "lockwo",
+  "license": "Apache-2.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/lockwo/claire.git"
+  },
+  "bugs": {
+    "url": "https://github.com/lockwo/claire/issues"
+  },
+  "homepage": "https://github.com/lockwo/claire#readme",
+  "engines": {
+    "node": ">=18.0.0",
+    "bun": ">=1.0.0"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "^0.32.0",
+    "@slack/bolt": "^4.1.0",
+    "@slack/web-api": "^7.7.0",
+    "glob": "^11.0.0",
+    "hono": "^4.6.0",
+    "openai": "^4.73.0",
+    "pdf-parse": "^1.1.1",
+    "postgres": "^3.4.5",
+    "simple-git": "^3.27.0",
+    "uuid": "^10.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "@types/bun": "latest",
+    "@types/pdf-parse": "^1.1.4",
+    "@types/uuid": "^10.0.0",
+    "typescript": "^5.6.0"
+  }
+}
