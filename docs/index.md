@@ -4,7 +4,7 @@ title: Home
 nav_order: 1
 ---
 
-<img src="../assets/logo.png" alt="Claire Logo" width="80" style="float: left; margin-right: 15px;">
+<img src="assets/logo.png" alt="Claire Logo" width="80" style="float: left; margin-right: 15px;">
 
 # Claire
 
