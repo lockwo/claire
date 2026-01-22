@@ -13,7 +13,7 @@ Slack-native AI code agent. Mention `@claire` in any thread to read/write code, 
 </tr>
 </table>
 
-> **CAUTION**: This codebase is mostly AI-generated, based on [Claude Code](https://github.com/anthropics/claude-code) and [OpenCode](https://github.com/anomalyco/opencode). Additionally, Claire executes arbitrary AI-generated code on your system. Running an AI agent with shell access, file system permissions, and GitHub credentials carries inherent security risks. Use at your own risk and only in sandboxed/isolated environments.
+> **CAUTION**: This codebase is mostly AI-generated [OpenCode](https://github.com/anomalyco/opencode). Additionally, Claire executes arbitrary AI-generated code on your system. Running an AI agent with shell access, file system permissions, and GitHub credentials carries inherent security risks. Use at your own risk and only in sandboxed/isolated environments.
 
 ## Features
 
