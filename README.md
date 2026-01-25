@@ -46,6 +46,7 @@ In Slack:
 - [Configuration](docs/CONFIGURATION.md) - Environment variables
 - [Deployment](docs/DEPLOYMENT.md) - Docker and production
 - [Troubleshooting](docs/TROUBLESHOOTING.md) - Common issues
+- [Google Meet Integration](docs/MEET_INTEGRATION.md) - Voice-triggered coding from meetings
 
 ## Usage
 

@@ -119,6 +119,9 @@ export const Scheduler = {
       throw new Error("Scheduler not initialized with Slack client");
     }
 
+    // Check if this is a Meet-sourced job (synthetic thread)
+    const isMeetJob = job.promptMessageTs.startsWith("meet-");
+
     try {
       // Mark job as started
       await JobManager.start(job.id);
@@ -127,16 +130,34 @@ export const Scheduler = {
       await SessionManager.setStatus(sessionId, "running");
 
       // Get session
-      const session = await SessionManager.findById(sessionId);
+      let session = await SessionManager.findById(sessionId);
       if (!session) {
         throw new Error(`Session ${sessionId} not found`);
       }
 
-      // Update reaction to show running
-      await updateReaction(this.client, session.channelId, job.promptMessageTs, "eyes", "hourglass_flowing_sand");
+      // For Meet jobs with synthetic threadTs, we'll post directly to channel (no thread)
+      // The session.threadTs will be used for tracking but messages go to channel root
 
-      // Gather context
-      const messages = await gatherContext(this.client, session);
+      // Update reaction to show running (skip for Meet jobs - no original message)
+      if (!isMeetJob) {
+        await updateReaction(this.client, session.channelId, job.promptMessageTs, "eyes", "hourglass_flowing_sand");
+      }
+
+      // Gather context (for Meet jobs, create synthetic context with just the prompt)
+      let messages: MessageSnapshot[] = [];
+      if (isMeetJob) {
+        // Create a synthetic message from the Meet prompt
+        messages = [{
+          id: `meet-msg-${Date.now()}`,
+          sessionId: session.id,
+          ts: job.promptMessageTs,
+          userId: job.userId,
+          text: job.promptText,
+          attachments: [],
+        }];
+      } else {
+        messages = await gatherContext(this.client, session);
+      }
       console.log(`[scheduler] Gathered ${messages.length} messages for context`);
 
       // Process attachments
@@ -182,10 +203,12 @@ export const Scheduler = {
         await JobManager.complete(job.id, result.summary);
 
         // Post results to Slack
-        await this.postResults(session, job, result);
+        await this.postResults(session, job, result, isMeetJob);
 
-        // Update reaction to show success
-        await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", "white_check_mark");
+        // Update reaction to show success (skip for Meet jobs)
+        if (!isMeetJob) {
+          await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", "white_check_mark");
+        }
 
         // Update user profile based on this interaction (async, don't await)
         updateProfileFromInteraction(job.userId, job.promptText, result.summary).catch(() => {
@@ -197,7 +220,9 @@ export const Scheduler = {
 
         if (err.name === "AbortError" || abortController.signal.aborted) {
           await JobManager.fail(job.id, "Aborted by user");
-          await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", "octagonal_sign");
+          if (!isMeetJob) {
+            await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", "octagonal_sign");
+          }
         } else {
           throw err;
         }
@@ -217,22 +242,31 @@ export const Scheduler = {
       // Get session for posting error
       const session = await SessionManager.findById(sessionId);
       if (session && this.client) {
-        // Use different emoji based on error type
-        const errorEmoji = claireError.category === ErrorCategory.RATE_LIMIT
-          ? "hourglass"
-          : claireError.retryable
-          ? "warning"
-          : "x";
+        // Use different emoji based on error type (skip for Meet jobs)
+        if (!isMeetJob) {
+          const errorEmoji = claireError.category === ErrorCategory.RATE_LIMIT
+            ? "hourglass"
+            : claireError.retryable
+            ? "warning"
+            : "x";
 
-        await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", errorEmoji);
+          await updateReaction(this.client, session.channelId, job.promptMessageTs, "hourglass_flowing_sand", errorEmoji);
+        }
 
-        // Post user-friendly error message
-        await postToThread(
-          this.client,
-          session.channelId,
-          session.threadTs,
-          formatErrorForSlack(err)
-        );
+        // Post user-friendly error message (to channel for Meet jobs, to thread otherwise)
+        if (isMeetJob) {
+          await this.client.chat.postMessage({
+            channel: session.channelId,
+            text: formatErrorForSlack(err),
+          });
+        } else {
+          await postToThread(
+            this.client,
+            session.channelId,
+            session.threadTs,
+            formatErrorForSlack(err)
+          );
+        }
       }
 
     } finally {
@@ -274,7 +308,7 @@ export const Scheduler = {
   /**
    * Post results to Slack
    */
-  async postResults(session: Session, job: Job, result: AgentResult): Promise<void> {
+  async postResults(session: Session, job: Job, result: AgentResult, isMeetJob: boolean = false): Promise<void> {
     if (!this.client) return;
 
     const storage = await getStorage();
@@ -288,14 +322,23 @@ export const Scheduler = {
       const pdfPath = await compileLatexToPdf(latex, workDir, `response_${job.id.slice(0, 8)}`);
       if (pdfPath) {
         try {
-          await uploadToThread(
-            this.client,
-            session.channelId,
-            session.threadTs,
-            pdfPath,
-            "response.pdf",
-            "Here's the rendered LaTeX:"
-          );
+          if (isMeetJob) {
+            await this.client.files.uploadV2({
+              channel_id: session.channelId,
+              file: pdfPath,
+              filename: "response.pdf",
+              initial_comment: "Here's the rendered LaTeX:",
+            });
+          } else {
+            await uploadToThread(
+              this.client,
+              session.channelId,
+              session.threadTs,
+              pdfPath,
+              "response.pdf",
+              "Here's the rendered LaTeX:"
+            );
+          }
           console.log(`[scheduler] Uploaded rendered PDF`);
           // Clean up temp files
           await cleanupLatexFiles(workDir, `response_${job.id.slice(0, 8)}`);
@@ -375,22 +418,38 @@ export const Scheduler = {
       });
     }
 
-    // Post main message (use plain text fallback, blocks for formatting)
-    await postToThread(this.client, session.channelId, session.threadTs, slackSummary.slice(0, 4000), blocks);
+    // Post main message (to channel for Meet jobs, to thread otherwise)
+    if (isMeetJob) {
+      await this.client.chat.postMessage({
+        channel: session.channelId,
+        text: slackSummary.slice(0, 4000),
+        blocks,
+      });
+    } else {
+      await postToThread(this.client, session.channelId, session.threadTs, slackSummary.slice(0, 4000), blocks);
+    }
 
     // Upload artifacts
     const artifacts = await storage.artifacts.findByJob(job.id);
     for (const artifact of artifacts) {
       if (artifact.type === "image" || artifact.type === "pdf") {
         try {
-          const fileId = await uploadToThread(
-            this.client,
-            session.channelId,
-            session.threadTs,
-            artifact.storageKey,
-            artifact.filename,
-            `Output: ${artifact.filename}`
-          );
+          // For Meet jobs, upload to channel; otherwise to thread
+          const fileId = isMeetJob
+            ? await this.client.files.uploadV2({
+                channel_id: session.channelId,
+                file: artifact.storageKey,
+                filename: artifact.filename,
+                initial_comment: `Output: ${artifact.filename}`,
+              }).then(r => (r as any).file?.id)
+            : await uploadToThread(
+                this.client,
+                session.channelId,
+                session.threadTs,
+                artifact.storageKey,
+                artifact.filename,
+                `Output: ${artifact.filename}`
+              );
 
           // Update artifact with Slack file ID
           if (fileId) {

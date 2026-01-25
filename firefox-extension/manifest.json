@@ -1,0 +1,30 @@
+{
+  "manifest_version": 2,
+  "name": "Claire Meet Captions",
+  "version": "1.0.0",
+  "description": "Captures Google Meet captions and sends them to Claire for processing",
+
+  "permissions": [
+    "activeTab",
+    "storage",
+    "*://meet.google.com/*"
+  ],
+
+  "content_scripts": [
+    {
+      "matches": ["*://meet.google.com/*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+
+  "background": {
+    "scripts": ["background.js"],
+    "persistent": false
+  },
+
+  "browser_action": {
+    "default_popup": "popup.html",
+    "default_title": "Claire Meet Captions"
+  }
+}

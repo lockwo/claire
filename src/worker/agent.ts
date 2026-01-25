@@ -331,13 +331,14 @@ async function collectArtifacts(
   const storage = await getStorage();
 
   // Look for common output files (exclude attachments subdirectory)
+  // Use ** to match in subdirectories too (e.g., plots/chart.png)
   const patterns = [
-    "*.png",
-    "*.jpg",
-    "*.jpeg",
-    "*.gif",
-    "*.svg",
-    "*.pdf",
+    "**/*.png",
+    "**/*.jpg",
+    "**/*.jpeg",
+    "**/*.gif",
+    "**/*.svg",
+    "**/*.pdf",
   ];
 
   const { glob } = await import("glob");

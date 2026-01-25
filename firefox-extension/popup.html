@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <style>
+      body {
+        width: 320px;
+        padding: 16px;
+        font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+          sans-serif;
+        font-size: 14px;
+        color: #333;
+      }
+
+      h1 {
+        font-size: 18px;
+        margin: 0 0 16px 0;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .status {
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin-bottom: 16px;
+        font-size: 13px;
+      }
+
+      .status.connected {
+        background: #d4edda;
+        color: #155724;
+      }
+
+      .status.disconnected {
+        background: #f8d7da;
+        color: #721c24;
+      }
+
+      .status.capturing {
+        background: #cce5ff;
+        color: #004085;
+      }
+
+      label {
+        display: block;
+        font-weight: 500;
+        margin-bottom: 4px;
+      }
+
+      input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 14px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+      }
+
+      input:focus,
+      textarea:focus {
+        outline: none;
+        border-color: #4a90d9;
+      }
+
+      textarea {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+        font-size: 13px;
+        box-sizing: border-box;
+        margin-bottom: 12px;
+        font-family: inherit;
+        resize: vertical;
+        min-height: 60px;
+      }
+
+      button {
+        width: 100%;
+        padding: 10px;
+        border: none;
+        border-radius: 6px;
+        font-size: 14px;
+        font-weight: 500;
+        cursor: pointer;
+        margin-bottom: 8px;
+      }
+
+      button.primary {
+        background: #4a90d9;
+        color: white;
+      }
+
+      button.primary:hover {
+        background: #3a7bc8;
+      }
+
+      button.secondary {
+        background: #e9ecef;
+        color: #333;
+      }
+
+      button.secondary:hover {
+        background: #dee2e6;
+      }
+
+      button.danger {
+        background: #dc3545;
+        color: white;
+      }
+
+      button.danger:hover {
+        background: #c82333;
+      }
+
+      .toggle-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 16px;
+      }
+
+      .toggle {
+        position: relative;
+        width: 50px;
+        height: 26px;
+      }
+
+      .toggle input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+
+      .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 26px;
+      }
+
+      .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+
+      input:checked + .slider {
+        background-color: #4a90d9;
+      }
+
+      input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+
+      .help {
+        font-size: 12px;
+        color: #666;
+        margin-top: 16px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Claire Meet Captions</h1>
+
+    <div id="status" class="status disconnected">Checking connection...</div>
+
+    <div class="toggle-row">
+      <span>Enable Capture</span>
+      <label class="toggle">
+        <input type="checkbox" id="enableToggle" />
+        <span class="slider"></span>
+      </label>
+    </div>
+
+    <label for="apiUrl">Claire API URL</label>
+    <input
+      type="text"
+      id="apiUrl"
+      placeholder="http://localhost:3000"
+      value="http://localhost:3000"
+    />
+
+    <label for="channelId">Slack Channel ID (optional)</label>
+    <input type="text" id="channelId" placeholder="C0123456789" />
+
+    <label for="threadTs">Thread Timestamp (optional)</label>
+    <input type="text" id="threadTs" placeholder="1234567890.123456" />
+
+    <label for="meetingContext">Meeting Context (optional)</label>
+    <textarea
+      id="meetingContext"
+      rows="3"
+      placeholder="e.g., We're discussing a PyTorch transformer model for time series forecasting. Using libraries: torch, einops, wandb."
+    ></textarea>
+
+    <button class="primary" id="saveBtn">Save Settings</button>
+    <button class="secondary" id="testBtn">Test Connection</button>
+
+    <div class="help">
+      Capture captions from Google Meet and send them to Claire. Make sure
+      captions are enabled in your meeting (press Shift+C).
+    </div>
+
+    <script src="popup.js"></script>
+  </body>
+</html>
