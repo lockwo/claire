@@ -1,5 +1,9 @@
 import { z } from "zod";
 
+// Input source - where a session/job originated
+export const InputSource = z.enum(["slack", "meet"]);
+export type InputSource = z.infer<typeof InputSource>;
+
 // Reasoning effort levels for OpenAI models
 export const ReasoningEffort = z.enum(["none", "low", "medium", "high", "xhigh", "auto"]);
 export type ReasoningEffort = z.infer<typeof ReasoningEffort>;
@@ -23,13 +27,14 @@ export const SessionConfig = z.object({
 });
 export type SessionConfig = z.infer<typeof SessionConfig>;
 
-// Session - maps 1:1 with a Slack thread
+// Session - maps 1:1 with a Slack thread (or Meet binding)
 export const Session = z.object({
   id: z.string().uuid(),
   channelId: z.string(),
   threadTs: z.string(),
   config: SessionConfig,
   status: z.enum(["idle", "running", "aborted", "completed"]),
+  source: InputSource.default("slack"),
   createdAt: z.coerce.date(),
   updatedAt: z.coerce.date(),
 });
@@ -41,8 +46,10 @@ export const Job = z.object({
   sessionId: z.string().uuid(),
   promptMessageTs: z.string(),
   promptText: z.string(),
-  userId: z.string(), // Slack user ID who submitted the job
+  userId: z.string(), // Slack user ID or "meet:<speaker>" for Meet jobs
   status: z.enum(["queued", "running", "succeeded", "failed", "aborted"]),
+  source: InputSource.default("slack"),
+  sourceMeta: z.record(z.unknown()).optional(), // Meet-specific metadata
   startedAt: z.coerce.date().optional(),
   endedAt: z.coerce.date().optional(),
   resultSummary: z.string().optional(),
@@ -169,3 +176,14 @@ export const LLMMessage = z.discriminatedUnion("role", [
   }),
 ]);
 export type LLMMessage = z.infer<typeof LLMMessage>;
+
+// Meet binding - maps Google Meet URL to Slack thread
+export const MeetBinding = z.object({
+  meetUrl: z.string(),
+  channelId: z.string(),
+  threadTs: z.string(),
+  createdBy: z.string(), // Slack user ID who created the binding
+  createdAt: z.coerce.date(),
+  expiresAt: z.coerce.date().optional(),
+});
+export type MeetBinding = z.infer<typeof MeetBinding>;

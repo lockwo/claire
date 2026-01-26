@@ -13,6 +13,7 @@ import type {
   MessageSnapshot,
   ChannelConfig,
   UserProfile,
+  MeetBinding,
 } from "../common/schema";
 import { getConfig } from "../common/config";
 import { createLocalStorage } from "./local";
@@ -73,6 +74,15 @@ export interface Storage {
     create(profile: UserProfile): Promise<UserProfile>;
     update(userId: string, updates: Partial<UserProfile>): Promise<UserProfile>;
     list(): Promise<UserProfile[]>;
+  };
+
+  // Meet Bindings (Google Meet URL → Slack thread mappings)
+  meetBindings: {
+    create(binding: MeetBinding): Promise<MeetBinding>;
+    findByMeetUrl(meetUrl: string): Promise<MeetBinding | null>;
+    findByThread(params: { channelId: string; threadTs: string }): Promise<MeetBinding | null>;
+    delete(meetUrl: string): Promise<void>;
+    list(): Promise<MeetBinding[]>;
   };
 }
 

@@ -57,6 +57,7 @@ export const SessionManager = {
           enableCodeInterpreter: false, // Use local bash instead
         },
         status: "idle",
+        source: "slack",
         createdAt: new Date(),
         updatedAt: new Date(),
       });
@@ -376,6 +377,7 @@ export const JobManager = {
       promptText: params.promptText,
       userId: params.userId,
       status: "queued",
+      source: "slack",
     };
 
     await storage.jobs.create(job);

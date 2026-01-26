@@ -41,6 +41,18 @@ const EnvSchema = z.object({
   WORKER_IDLE_TIMEOUT_MS: z.coerce.number().default(600000), // 10 minutes
   WORKER_MAX_RUNTIME_MS: z.coerce.number().default(1800000), // 30 minutes
   MAX_AGENT_ITERATIONS: z.coerce.number().default(50),
+
+  // Google Meet integration
+  MEET_BOT_DISPLAY_NAME: z.string().default("Claire Bot"),
+  MEET_BOT_HEADLESS: z
+    .string()
+    .transform((v) => v === "true")
+    .default("true"),
+  MEET_MIN_TRIGGER_CONFIDENCE: z.coerce.number().min(0).max(1).default(0.6),
+  MEET_COOLDOWN_MS: z.coerce.number().default(30000), // 30 seconds
+
+  // HTTP API
+  HTTP_PORT: z.coerce.number().default(3000),
 });
 
 export type Env = z.infer<typeof EnvSchema>;

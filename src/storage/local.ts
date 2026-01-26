@@ -16,6 +16,7 @@ import type {
   MessageSnapshot,
   ChannelConfig,
   UserProfile,
+  MeetBinding,
 } from "../common/schema";
 
 export type LocalStorage = Storage;
@@ -28,6 +29,7 @@ interface DataStore {
   messages: Map<string, MessageSnapshot>;
   channelConfig: Map<string, ChannelConfig>;
   profiles: Map<string, UserProfile>;
+  meetBindings: Map<string, MeetBinding>;
 }
 
 export async function createLocalStorage(dataDir: string): Promise<LocalStorage> {
@@ -49,6 +51,7 @@ export async function createLocalStorage(dataDir: string): Promise<LocalStorage>
       messages: new Map(Object.entries(parsed.messages || {})),
       channelConfig: new Map(Object.entries(parsed.channelConfig || {})),
       profiles: new Map(Object.entries(parsed.profiles || {})),
+      meetBindings: new Map(Object.entries(parsed.meetBindings || {})),
     };
   } catch {
     store = {
@@ -59,6 +62,7 @@ export async function createLocalStorage(dataDir: string): Promise<LocalStorage>
       messages: new Map(),
       channelConfig: new Map(),
       profiles: new Map(),
+      meetBindings: new Map(),
     };
   }
 
@@ -72,6 +76,7 @@ export async function createLocalStorage(dataDir: string): Promise<LocalStorage>
       messages: Object.fromEntries(store.messages),
       channelConfig: Object.fromEntries(store.channelConfig),
       profiles: Object.fromEntries(store.profiles),
+      meetBindings: Object.fromEntries(store.meetBindings),
     };
     await fs.writeFile(dataFile, JSON.stringify(data, null, 2));
   }
@@ -250,6 +255,36 @@ export async function createLocalStorage(dataDir: string): Promise<LocalStorage>
 
       async list(): Promise<UserProfile[]> {
         return Array.from(store.profiles.values());
+      },
+    },
+
+    meetBindings: {
+      async create(binding: MeetBinding): Promise<MeetBinding> {
+        store.meetBindings.set(binding.meetUrl, binding);
+        await persist();
+        return binding;
+      },
+
+      async findByMeetUrl(meetUrl: string): Promise<MeetBinding | null> {
+        return store.meetBindings.get(meetUrl) || null;
+      },
+
+      async findByThread({ channelId, threadTs }): Promise<MeetBinding | null> {
+        for (const binding of store.meetBindings.values()) {
+          if (binding.channelId === channelId && binding.threadTs === threadTs) {
+            return binding;
+          }
+        }
+        return null;
+      },
+
+      async delete(meetUrl: string): Promise<void> {
+        store.meetBindings.delete(meetUrl);
+        await persist();
+      },
+
+      async list(): Promise<MeetBinding[]> {
+        return Array.from(store.meetBindings.values());
       },
     },
   };

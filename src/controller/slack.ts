@@ -17,6 +17,7 @@ import {
   removeReactionWithRetry,
   uploadFileWithRetry,
 } from "../common/slack-retry";
+import { MeetController, MeetBindingManager } from "../meet";
 
 export interface SlackHandler {
   app: App;
@@ -218,6 +219,136 @@ export async function createSlackHandler(config: Env): Promise<SlackHandler> {
     }
   });
 
+  // Handle /claire slash commands
+  app.command("/claire", async ({ command, ack, respond, client }) => {
+    await ack();
+
+    const args = command.text.trim().split(/\s+/);
+    const subcommand = args[0]?.toLowerCase() || "";
+
+    switch (subcommand) {
+      case "bind-meet": {
+        const rawUrl = args[1];
+        if (!rawUrl) {
+          await respond({
+            text: "Usage: `/claire bind-meet <meet-url>`\nExample: `/claire bind-meet https://meet.google.com/abc-defg-hij`",
+            response_type: "ephemeral",
+          });
+          return;
+        }
+
+        // Normalize and validate Meet URL
+        const meetUrl = MeetBindingManager.normalizeInputUrl(rawUrl);
+        if (!MeetBindingManager.isValidMeetUrl(meetUrl)) {
+          await respond({
+            text: "Invalid Meet URL. Please provide a valid Google Meet link (e.g., meet.google.com/abc-defg-hij)",
+            response_type: "ephemeral",
+          });
+          return;
+        }
+
+        try {
+          // Create a thread for Meet results
+          const thread = await client.chat.postMessage({
+            channel: command.channel_id,
+            text: `:satellite: *Claire Meet Binding*\nMeeting: ${meetUrl}\nBound by: <@${command.user_id}>\n\n_I'll post results from this meeting here. Say "Claire, [task]" in the meeting to trigger actions._`,
+          });
+
+          if (!thread.ts) {
+            await respond({
+              text: "Failed to create thread for Meet binding.",
+              response_type: "ephemeral",
+            });
+            return;
+          }
+
+          // Create binding
+          await MeetBindingManager.create({
+            meetUrl,
+            channelId: command.channel_id,
+            threadTs: thread.ts,
+            createdBy: command.user_id,
+            ttlHours: 8, // Binding expires after 8 hours
+          });
+
+          // Start the Meet bot
+          await MeetController.startBot(meetUrl);
+
+          await respond({
+            text: `:white_check_mark: Meet binding created!\nMeeting: ${meetUrl}\n\nThe Claire bot will join the meeting shortly. Say "Claire, [task]" during the meeting to trigger actions.`,
+            response_type: "ephemeral",
+          });
+        } catch (err) {
+          console.error(`[slack] bind-meet error:`, err);
+          await respond({
+            text: `Failed to create Meet binding: ${err}`,
+            response_type: "ephemeral",
+          });
+        }
+        break;
+      }
+
+      case "unbind-meet": {
+        const rawUrl = args[1];
+        if (!rawUrl) {
+          await respond({
+            text: "Usage: `/claire unbind-meet <meet-url>`",
+            response_type: "ephemeral",
+          });
+          return;
+        }
+
+        const meetUrl = MeetBindingManager.normalizeInputUrl(rawUrl);
+        try {
+          await MeetController.stopBot(meetUrl);
+          await MeetBindingManager.remove(meetUrl);
+
+          await respond({
+            text: `:wave: Meet binding removed and bot disconnected.`,
+            response_type: "ephemeral",
+          });
+        } catch (err) {
+          console.error(`[slack] unbind-meet error:`, err);
+          await respond({
+            text: `Failed to remove Meet binding: ${err}`,
+            response_type: "ephemeral",
+          });
+        }
+        break;
+      }
+
+      case "meet-status": {
+        const activeCount = MeetController.getActiveCount();
+        const activeUrls = MeetController.getActiveUrls();
+        const stats = MeetController.getCooldownStats();
+
+        let statusText = `:satellite: *Meet Status*\nActive bots: ${activeCount}`;
+        if (activeUrls.length > 0) {
+          statusText += `\n\nActive meetings:\n${activeUrls.map((u) => `• ${u}`).join("\n")}`;
+        }
+        statusText += `\n\nCooldown: ${stats.triggerCount} triggers, ${stats.speakerCount} speakers tracked`;
+
+        await respond({
+          text: statusText,
+          response_type: "ephemeral",
+        });
+        break;
+      }
+
+      case "help":
+      default:
+        await respond({
+          text: `*Claire Commands*\n\n` +
+            `\`/claire bind-meet <url>\` - Connect a Google Meet to this channel\n` +
+            `\`/claire unbind-meet <url>\` - Disconnect a Google Meet\n` +
+            `\`/claire meet-status\` - Show active Meet connections\n` +
+            `\`/claire help\` - Show this help message\n\n` +
+            `Or just mention \`@claire\` in a thread to start a coding session!`,
+          response_type: "ephemeral",
+        });
+    }
+  });
+
   return {
     app,
     client: app.client,
@@ -230,6 +361,8 @@ export async function createSlackHandler(config: Env): Promise<SlackHandler> {
 
     async stop() {
       clearInterval(cleanupInterval);
+      // Stop all Meet bots on shutdown
+      await MeetController.stopAll();
       await app.stop();
       console.log("Slack socket mode stopped");
     },
